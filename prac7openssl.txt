@@ -1,0 +1,58 @@
+$openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout localhost.key -out localhost.crt
+
+clientside.py
+import socket
+import ssl
+
+client_socket = socket.socket(socket.AF_INET , socket.SOCK_STREAM)
+
+ip = '127.0.0.1'
+port= 443
+client_socket.connect((ip , port))
+
+context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+
+context.check_hostname = False
+context.verify_mode = ssl.CERT_NONE
+
+ssl_client_socket = context.wrap_socket(client_socket , server_hostname=ip)
+
+try :
+    ssl_client_socket.send(b"Heloo server")
+    data = ssl_client_socket.recv(1024)
+    print("Recveied data is ", data.decode())
+except:
+    print("SSL Error")
+finally:
+    ssl_client_socket.close()
+
+
+serverside.py
+
+import socket
+import ssl
+
+server_socket = socket.socket(socket.AF_INET , socket.SOCK_STREAM)
+server_socket.bind(("0.0.0.0" , 443))
+server_socket.listen()
+
+certflile = 'localhost.crt'
+keyfile = 'localhost.key'
+
+context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+context.load_cert_chain(certfile=certflile , keyfile=keyfile)
+
+print("Server is listening at 443")
+
+while True:
+    client_socket , client_address = server_socket.accept()
+    ssl_server_socket = context.wrap_socket(client_socket , server_side=True)
+
+    try :
+        data = ssl_server_socket.recv(1024)
+        print("received data is : ", data.decode())
+        ssl_server_socket.send(b"Heloo client")
+    except:
+        print("SSL ERROR")
+    finally:
+        ssl_server_socket.close()
